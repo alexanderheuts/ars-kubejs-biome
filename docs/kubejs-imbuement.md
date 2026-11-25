@@ -53,4 +53,4 @@ Copy the [clay imbuement example](../examples/kubejs/server_scripts/biome_imbuem
 - In other biomes, the same setup makes ordinary terracotta.
 - To test a restricted-only recipe, remove the ordinary recipe from the script and reload. In other biomes, the chamber leaves the clay ball in place and does not draw Source for that recipe.
 
-The recipes use Ars's existing Imbuement Chamber recipe type. Displaying their biome requirements in JEI is a separate step.
+Both recipes appear in Ars's Imbuement Chamber category in JEI. Restricted recipes show a biome row below the Source cost. Hover over the row to see the complete biome list.
