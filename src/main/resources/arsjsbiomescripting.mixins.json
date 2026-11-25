@@ -3,8 +3,8 @@
   "package": "com.holysweet.arsjsbiomescripting.mixin",
   "plugin": "com.holysweet.arsjsbiomescripting.mixin.BiomeScriptingMixinPlugin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["ImbuementTileMixin", "RecipesKubeEventMixin", "RitualBrazierBlockMixin"],
-  "client": ["jei.ImbuementRecipeCategoryMixin"],
+  "mixins": ["EnchantingApparatusTileMixin", "ImbuementTileMixin", "RecipesKubeEventMixin", "RitualBrazierBlockMixin"],
+  "client": ["jei.BiomeRecipeCategoryMixin"],
   "injectors": {
     "defaultRequire": 1
   }

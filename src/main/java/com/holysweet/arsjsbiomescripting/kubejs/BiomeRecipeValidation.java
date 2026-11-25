@@ -1,8 +1,8 @@
 package com.holysweet.arsjsbiomescripting.kubejs;
 
 import com.google.common.collect.ImmutableMultiset;
-import com.holysweet.arsjsbiomescripting.crafting.BiomeImbuementRecipe;
 import com.holysweet.arsjsbiomescripting.crafting.BiomeRecipeSerializers;
+import com.holysweet.arsjsbiomescripting.crafting.BiomeRestrictedRecipe;
 import dev.latvian.mods.kubejs.recipe.KubeRecipe;
 import dev.latvian.mods.kubejs.recipe.RecipesKubeEvent;
 import dev.latvian.mods.kubejs.script.ConsoleJS;
@@ -15,8 +15,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class BiomeImbuementValidation {
-    private BiomeImbuementValidation() {}
+public final class BiomeRecipeValidation {
+    private BiomeRecipeValidation() {}
 
     public static void validate(RecipesKubeEvent event) {
         Map<Inputs, Map<ResourceKey<Biome>, ResourceLocation>> claims = new HashMap<>();
@@ -32,34 +32,46 @@ public final class BiomeImbuementValidation {
 
     private static void validateRecipe(RecipesKubeEvent event, KubeRecipe recipe,
                                        Map<Inputs, Map<ResourceKey<Biome>, ResourceLocation>> claims) {
-        if (recipe.removed || recipe.creationError
-                || !BiomeRecipeSerializers.IMBUEMENT_ID.equals(recipe.getSerializationTypeFunction().schemaType.id)) {
+        if (recipe.removed || recipe.creationError) {
+            return;
+        }
+        var schema = recipe.getSerializationTypeFunction().schemaType;
+        String category;
+        if (BiomeRecipeSerializers.IMBUEMENT_ID.equals(schema.id)) {
+            category = "imbuement";
+        } else if (BiomeRecipeSerializers.APPARATUS_ID.equals(schema.id)) {
+            category = "enchanting apparatus";
+        } else {
             return;
         }
 
         recipe.serializeChanges();
         var id = recipe.getOrCreateId();
-        var decoded = BiomeRecipeSerializers.IMBUEMENT.get().codec().codec().parse(event.ops.json(), recipe.json);
+        var decoded = schema.getSerializer().codec().codec().parse(event.ops.json(), recipe.json);
         if (decoded.error().isPresent()) {
-            reject(recipe, "Biome imbuement recipe '" + id + "': " + decoded.error().orElseThrow().message()
+            reject(recipe, "Biome " + category + " recipe '" + id + "': " + decoded.error().orElseThrow().message()
                     + " in " + recipe.json);
             return;
         }
 
-        BiomeImbuementRecipe restricted = decoded.getOrThrow();
-        var inputs = new Inputs(restricted.getInput(), ImmutableMultiset.copyOf(restricted.getPedestalItems()));
+        if (!(decoded.getOrThrow() instanceof BiomeRestrictedRecipe restricted)) {
+            return;
+        }
+        var inputs = new Inputs(schema.id, restricted.primaryIngredient(),
+                ImmutableMultiset.copyOf(restricted.pedestalIngredients()));
+        var biomes = restricted.biomeRequirement().keys();
         var byBiome = claims.computeIfAbsent(inputs, key -> new HashMap<>());
-        var overlaps = restricted.biomeKeys().stream().filter(byBiome::containsKey)
+        var overlaps = biomes.stream().filter(byBiome::containsKey)
                 .sorted(Comparator.comparing(ResourceKey::location))
                 .map(biome -> biome.location() + " (recipe '" + byBiome.get(biome) + "')")
                 .toList();
         if (!overlaps.isEmpty()) {
-            reject(recipe, "Duplicate biome imbuement recipe '" + id
-                    + "': the same chamber and pedestal inputs are already registered in " + String.join(", ", overlaps));
+            reject(recipe, "Duplicate biome " + category + " recipe '" + id
+                    + "': the same primary and pedestal inputs are already registered in " + String.join(", ", overlaps));
             return;
         }
 
-        restricted.biomeKeys().forEach(biome -> byBiome.put(biome, id));
+        biomes.forEach(biome -> byBiome.put(biome, id));
     }
 
     private static void reject(KubeRecipe recipe, String message) {
@@ -67,5 +79,5 @@ public final class BiomeImbuementValidation {
         ConsoleJS.SERVER.error(message, recipe.sourceLine, null, null);
     }
 
-    private record Inputs(Ingredient chamber, ImmutableMultiset<Ingredient> pedestals) {}
+    private record Inputs(ResourceLocation serializer, Ingredient primary, ImmutableMultiset<Ingredient> pedestals) {}
 }

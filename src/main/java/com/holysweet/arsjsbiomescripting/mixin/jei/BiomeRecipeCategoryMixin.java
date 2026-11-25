@@ -1,7 +1,8 @@
 package com.holysweet.arsjsbiomescripting.mixin.jei;
 
+import com.hollingsworth.arsnouveau.client.jei.EnchantingApparatusRecipeCategory;
 import com.hollingsworth.arsnouveau.client.jei.ImbuementRecipeCategory;
-import com.holysweet.arsjsbiomescripting.crafting.BiomeImbuementRecipe;
+import com.holysweet.arsjsbiomescripting.crafting.BiomeRestrictedRecipe;
 import mezz.jei.api.gui.widgets.IRecipeExtrasBuilder;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.category.IRecipeCategory;
@@ -17,9 +18,9 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import java.util.ArrayList;
 
-@Mixin(value = ImbuementRecipeCategory.class, remap = false)
+@Mixin(value = {ImbuementRecipeCategory.class, EnchantingApparatusRecipeCategory.class}, remap = false)
 @SuppressWarnings("unused") // Loaded from arsjsbiomescripting.mixins.json.
-abstract class ImbuementRecipeCategoryMixin implements IRecipeCategory<Object> {
+abstract class BiomeRecipeCategoryMixin implements IRecipeCategory<Object> {
     @ModifyArg(method = "<init>", at = @At(value = "INVOKE", target =
             "Lmezz/jei/api/helpers/IGuiHelper;createBlankDrawable(II)Lmezz/jei/api/gui/drawable/IDrawableStatic;"), index = 1)
     private int arsjsbiomescripting$reserveBiomeRow(int height) {
@@ -29,11 +30,11 @@ abstract class ImbuementRecipeCategoryMixin implements IRecipeCategory<Object> {
     @Override
     public void createRecipeExtras(@NotNull IRecipeExtrasBuilder builder, @NotNull Object recipe,
                                    @NotNull IFocusGroup focuses) {
-        if (!(recipe instanceof RecipeHolder<?> holder) || !(holder.value() instanceof BiomeImbuementRecipe restricted)) {
+        if (!(recipe instanceof RecipeHolder<?> holder) || !(holder.value() instanceof BiomeRestrictedRecipe restricted)) {
             return;
         }
 
-        var biomeNames = restricted.biomeKeys().stream()
+        var biomeNames = restricted.biomeRequirement().keys().stream()
                 .map(ResourceKey::location)
                 .sorted()
                 .map(id -> Component.translatableWithFallback(Util.makeDescriptionId("biome", id), id.toString()))

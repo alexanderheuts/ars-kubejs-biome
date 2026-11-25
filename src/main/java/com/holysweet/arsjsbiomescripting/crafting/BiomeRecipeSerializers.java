@@ -16,6 +16,10 @@ public final class BiomeRecipeSerializers {
             ResourceLocation.fromNamespaceAndPath(ArsNouveauKubeJSBiomeScripting.MODID, "biome_imbuement");
     public static final DeferredHolder<RecipeSerializer<?>, BiomeImbuementRecipe.Serializer> IMBUEMENT =
             SERIALIZERS.register(IMBUEMENT_ID.getPath(), BiomeImbuementRecipe.Serializer::new);
+    public static final ResourceLocation APPARATUS_ID =
+            ResourceLocation.fromNamespaceAndPath(ArsNouveauKubeJSBiomeScripting.MODID, "biome_enchanting_apparatus");
+    public static final DeferredHolder<RecipeSerializer<?>, BiomeApparatusRecipe.Serializer> APPARATUS =
+            SERIALIZERS.register(APPARATUS_ID.getPath(), BiomeApparatusRecipe.Serializer::new);
 
     private BiomeRecipeSerializers() {}
 

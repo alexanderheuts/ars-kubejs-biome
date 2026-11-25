@@ -1,7 +1,7 @@
 package com.holysweet.arsjsbiomescripting.mixin;
 
 import com.google.gson.JsonElement;
-import com.holysweet.arsjsbiomescripting.kubejs.BiomeImbuementValidation;
+import com.holysweet.arsjsbiomescripting.kubejs.BiomeRecipeValidation;
 import dev.latvian.mods.kubejs.recipe.RecipesKubeEvent;
 import net.minecraft.resources.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,6 +16,6 @@ import java.util.Map;
 abstract class RecipesKubeEventMixin {
     @Inject(method = "applyChanges", at = @At("HEAD"))
     private void arsjsbiomescripting$validateBiomeRecipes(Map<ResourceLocation, JsonElement> recipes, CallbackInfo callback) {
-        BiomeImbuementValidation.validate((RecipesKubeEvent) (Object) this);
+        BiomeRecipeValidation.validate((RecipesKubeEvent) (Object) this);
     }
 }
