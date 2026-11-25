@@ -1,7 +1,7 @@
 package com.holysweet.arsjsbiomescripting;
 
 import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
-import com.holysweet.arsjsbiomescripting.ritual.BiomeOnlyRitual;
+import com.holysweet.arsjsbiomescripting.ritual.ConfiguredBiomeRitual;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -16,6 +16,6 @@ public class ArsNouveauKubeJSBiomeScripting {
 
     private void registerRitual(FMLCommonSetupEvent event) {
         // The shared ritual is reconstructed by Ars, while its inputs are defined by scripts.
-        event.enqueueWork(() -> RitualRegistry.registerRitual(new BiomeOnlyRitual()));
+        event.enqueueWork(() -> RitualRegistry.registerRitual(new ConfiguredBiomeRitual()));
     }
 }

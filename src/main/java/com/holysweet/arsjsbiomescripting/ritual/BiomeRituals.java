@@ -79,8 +79,8 @@ public final class BiomeRituals {
             return;
         }
 
-        brazier.setRitual(BiomeOnlyRitual.ID);
-        if (brazier.ritual instanceof BiomeOnlyRitual ritual) {
+        brazier.setRitual(ConfiguredBiomeRitual.ID);
+        if (brazier.ritual instanceof ConfiguredBiomeRitual ritual) {
             boolean consume = !event.getEntity().hasInfiniteMaterials();
             var stack = event.getItemStack();
             ritual.stage(definition, consume ? stack.split(1) : stack.copyWithCount(1), consume);

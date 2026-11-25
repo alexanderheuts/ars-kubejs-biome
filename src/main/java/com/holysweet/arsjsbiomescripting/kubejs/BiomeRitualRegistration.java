@@ -1,6 +1,7 @@
 package com.holysweet.arsjsbiomescripting.kubejs;
 
 import com.holysweet.arsjsbiomescripting.ritual.BiomeRitualDefinition;
+import com.holysweet.arsjsbiomescripting.ritual.IslandBlocks;
 import dev.latvian.mods.kubejs.event.KubeEvent;
 import dev.latvian.mods.kubejs.script.ConsoleJS;
 import net.minecraft.core.Registry;
@@ -11,6 +12,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,10 +42,11 @@ public final class BiomeRitualRegistration implements KubeEvent {
             Object value = options.getOrDefault("defaultMode", "Islands");
             String mode = requiredText("defaultMode", value);
             switch (mode) {
-                case "BiomeOnly" -> define(id, options);
-                case "Islands", "Replace", "ReplaceAndFill" -> throw invalid("defaultMode", mode,
-                        "mode is not available yet; set defaultMode to BiomeOnly");
-                default -> throw invalid("defaultMode", mode, "unknown ritual mode; use BiomeOnly in this version");
+                case "BiomeOnly" -> define(id, options, null);
+                case "Islands" -> define(id, options, islandBlocks(options.get("blocks")));
+                case "Replace", "ReplaceAndFill" -> throw invalid("defaultMode", mode,
+                        "mode is not available yet; use Islands or BiomeOnly");
+                default -> throw invalid("defaultMode", mode, "unknown ritual mode; use Islands or BiomeOnly");
             }
         } catch (IllegalArgumentException exception) {
             reportError(id, exception);
@@ -52,7 +56,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
     @SuppressWarnings("unused") // Retained for existing KubeJS scripts.
     public void biomeOnly(String id, Map<String, Object> options) {
         try {
-            define(id, options);
+            define(id, options, null);
         } catch (IllegalArgumentException exception) {
             reportError(id, exception);
         }
@@ -62,7 +66,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
         ConsoleJS.SERVER.error("Biome ritual '" + id + "': " + exception.getMessage());
     }
 
-    private void define(String id, Map<String, Object> options) {
+    private void define(String id, Map<String, Object> options, @Nullable IslandBlocks islandBlocks) {
         var ritualId = resourceId("id", id);
         if (options == null) {
             throw invalid("options", null, "expected a definition object");
@@ -77,7 +81,8 @@ public final class BiomeRitualRegistration implements KubeEvent {
                 requiredText("description", options.get("description")), item,
                 startingBiomes(options.get("startingBiomes")), biome("targetBiome", options.get("targetBiome")),
                 integer("radius", options.getOrDefault("radius", 7), 1, 64),
-                integer("sourceCostPerBlock", options.getOrDefault("sourceCostPerBlock", 10), 0, Integer.MAX_VALUE / 5)
+                integer("sourceCostPerBlock", options.getOrDefault("sourceCostPerBlock", 10), 0, Integer.MAX_VALUE / 5),
+                islandBlocks
         );
         for (var existing : definitions) {
             if (existing.id().equals(ritualId)) {
@@ -89,6 +94,30 @@ public final class BiomeRitualRegistration implements KubeEvent {
             }
         }
         definitions.add(definition);
+    }
+
+    private static IslandBlocks islandBlocks(Object value) {
+        if (!(value instanceof Map<?, ?> blocks)) {
+            throw invalid("blocks", value, "Islands requires an object with at least a layer1 block");
+        }
+        Block layer1 = block("blocks.layer1", blocks.get("layer1"));
+        Block layer2 = optionalBlock(blocks, "layer2", layer1);
+        Block layer3To4 = optionalBlock(blocks, "layer3To4", layer2);
+        Block layer5Plus = optionalBlock(blocks, "layer5Plus", layer3To4);
+        return new IslandBlocks(layer1, layer2, layer3To4, layer5Plus);
+    }
+
+    private static Block optionalBlock(Map<?, ?> blocks, String field, Block fallback) {
+        return blocks.containsKey(field) ? block("blocks." + field, blocks.get(field)) : fallback;
+    }
+
+    private static Block block(String field, Object value) {
+        var id = resourceId(field, value);
+        var block = BuiltInRegistries.BLOCK.get(id);
+        if (block.defaultBlockState().isAir()) {
+            throw invalid(field, value, "expected a registered, non-air block");
+        }
+        return block;
     }
 
     private Set<ResourceKey<Biome>> startingBiomes(Object value) {

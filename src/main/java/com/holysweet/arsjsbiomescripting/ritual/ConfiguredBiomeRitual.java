@@ -17,12 +17,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Block;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
 
-public final class BiomeOnlyRitual extends AbstractRitual {
+public final class ConfiguredBiomeRitual extends AbstractRitual {
+    // Keep the registry ID used by saved biome-only rituals.
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(
             ArsNouveauKubeJSBiomeScripting.MODID, "biome_only"
     );
@@ -39,10 +41,12 @@ public final class BiomeOnlyRitual extends AbstractRitual {
     private BlockPos origin;
     private int radius;
     private int sourceCostPerBlock;
+    @Nullable
+    private IslandBlocks islandBlocks;
     private ManhattenTracker tracker;
     private long[] batch = new long[0];
 
-    public BiomeOnlyRitual() {}
+    public ConfiguredBiomeRitual() {}
 
     void stage(BiomeRitualDefinition definition, ItemStack offeredItem, boolean refundable) {
         input = offeredItem;
@@ -57,6 +61,7 @@ public final class BiomeOnlyRitual extends AbstractRitual {
         targetBiome = definition.targetBiome();
         radius = definition.radius();
         sourceCostPerBlock = definition.sourceCostPerBlock();
+        islandBlocks = definition.islandBlocks();
     }
 
     @Nullable
@@ -84,7 +89,9 @@ public final class BiomeOnlyRitual extends AbstractRitual {
         }
         resolve(definition);
         origin = position.immutable();
-        tracker = new ManhattenTracker(origin.below(3), radius, 2, radius);
+        tracker = islandBlocks == null
+                ? new ManhattenTracker(origin.below(3), radius, 2, radius)
+                : new ManhattenTracker(origin.below(4), radius, 3, radius);
         input = ItemStack.EMPTY;
         refundableInput = false;
         super.onStart(player);
@@ -93,17 +100,25 @@ public final class BiomeOnlyRitual extends AbstractRitual {
 
     @Override
     protected void tick() {
-        if (!(getWorld() instanceof ServerLevel level) || needsSourceNow()) {
+        if (!(getWorld() instanceof ServerLevel level) || (needsSourceNow() && getSourceCost() > 0)) {
             return;
         }
-        if (tracker == null || targetBiome == null
+        if (tracker == null || targetBiome == null || (islandBlocks != null && !islandBlocks.isValid())
                 || !level.registryAccess().registryOrThrow(Registries.BIOME).containsKey(targetBiome.location())) {
             setFinished();
             markProgress(level);
             return;
         }
         for (long position : batch) {
-            RitualUtil.changeBiome(level, BlockPos.of(position), targetBiome);
+            BlockPos pos = BlockPos.of(position);
+            if (islandBlocks != null) {
+                int depth = origin.getY() - pos.getY();
+                if (!level.isEmptyBlock(pos)
+                        || !level.setBlock(pos, islandBlocks.atDepth(depth).defaultBlockState(), Block.UPDATE_ALL)) {
+                    continue;
+                }
+            }
+            RitualUtil.changeBiome(level, pos, targetBiome);
         }
         queueBatch(level);
     }
@@ -118,17 +133,28 @@ public final class BiomeOnlyRitual extends AbstractRitual {
             }
             int depth = origin.getY() - next.getY();
             if (depth >= 1 && depth <= MAX_DEPTH && !level.isOutsideBuildHeight(next)
-                    && next.distSqr(origin) <= (double) radius * radius) {
+                    && isInFootprint(next, depth) && (islandBlocks == null || level.isEmptyBlock(next))) {
                 positions[count++] = next.asLong();
             }
         }
         batch = Arrays.copyOf(positions, count);
         if (count == 0) {
             setFinished();
-        } else if (getSourceCost() > 0) {
-            setNeedsSource(true);
+        } else {
+            setNeedsSource(getSourceCost() > 0);
         }
         markProgress(level);
+    }
+
+    private boolean isInFootprint(BlockPos pos, int depth) {
+        if (islandBlocks == null) {
+            return pos.distSqr(origin) <= (double) radius * radius;
+        }
+        // Scale the width of each layer while keeping the depth fixed.
+        int dx = pos.getX() - origin.getX();
+        int dz = pos.getZ() - origin.getZ();
+        int depthSquared = MAX_DEPTH * MAX_DEPTH;
+        return (dx * dx + dz * dz) * depthSquared <= radius * radius * (depthSquared - depth * depth);
     }
 
     private void markProgress(ServerLevel level) {
@@ -163,7 +189,16 @@ public final class BiomeOnlyRitual extends AbstractRitual {
 
     @Override
     public int getSourceCost() {
-        return batch.length * sourceCostPerBlock;
+        int count = batch.length;
+        if (islandBlocks != null && getWorld() instanceof ServerLevel level) {
+            count = 0;
+            for (long position : batch) {
+                if (level.isEmptyBlock(BlockPos.of(position))) {
+                    count++;
+                }
+            }
+        }
+        return count * sourceCostPerBlock;
     }
 
     @Override
@@ -181,6 +216,9 @@ public final class BiomeOnlyRitual extends AbstractRitual {
         if (!input.isEmpty()) {
             state.put("input", input.save(registries));
             state.putBoolean("refundableInput", refundableInput);
+        }
+        if (islandBlocks != null) {
+            state.put("islandBlocks", islandBlocks.save());
         }
         if (tracker != null) {
             state.putLong("origin", origin.asLong());
@@ -204,6 +242,8 @@ public final class BiomeOnlyRitual extends AbstractRitual {
             sourceCostPerBlock = state.getInt("sourceCost");
         }
         input = ItemStack.parseOptional(registries, state.getCompound("input"));
+        islandBlocks = state.contains("islandBlocks", Tag.TAG_COMPOUND)
+                ? IslandBlocks.load(state.getCompound("islandBlocks")) : null;
         refundableInput = state.getBoolean("refundableInput");
         if (state.contains("tracker", Tag.TAG_COMPOUND)) {
             origin = BlockPos.of(state.getLong("origin"));

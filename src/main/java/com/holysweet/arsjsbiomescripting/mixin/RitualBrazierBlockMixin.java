@@ -2,7 +2,7 @@ package com.holysweet.arsjsbiomescripting.mixin;
 
 import com.hollingsworth.arsnouveau.common.block.RitualBrazierBlock;
 import com.hollingsworth.arsnouveau.common.block.tile.RitualBrazierTile;
-import com.holysweet.arsjsbiomescripting.ritual.BiomeOnlyRitual;
+import com.holysweet.arsjsbiomescripting.ritual.ConfiguredBiomeRitual;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Player;
@@ -21,7 +21,7 @@ abstract class RitualBrazierBlockMixin {
             Level level, BlockPos pos, BlockState state, Player player, CallbackInfoReturnable<BlockState> callback
     ) {
         if (level.getBlockEntity(pos) instanceof RitualBrazierTile brazier
-                && brazier.ritual instanceof BiomeOnlyRitual ritual && !ritual.isRunning() && !ritual.isDone()) {
+                && brazier.ritual instanceof ConfiguredBiomeRitual ritual && !ritual.isRunning() && !ritual.isDone()) {
             // Ars drops a registered tablet for staged rituals. Drop this ritual's actual input instead.
             var input = ritual.removeStagedInput();
             brazier.ritual = null;

@@ -3,6 +3,8 @@
 
 See the [KubeJS API reference](docs/kubejs.md) for registration, supported parameters, and defaults.
 
+To test `Islands`, copy the [terracotta island example](examples/kubejs/server_scripts/terracotta_island.js) into the instance's `kubejs/server_scripts` directory. Place a brazier above open air with seven blocks of clearance below it, offer a plain terracotta block, and start the ritual with an empty main hand. With Source available, it creates a four-color terracotta island and changes the area to Badlands.
+
 The [sand-to-desert example](examples/kubejs/server_scripts/sand_to_desert.js) registers a biome-only ritual through `BiomeRitualEvents.register`. Copy the script into the instance's `kubejs/server_scripts` directory and open a world or use `/reload`.
 
 1. Place an empty Ars Nouveau Ritual Brazier in a biome other than Desert so the change is visible.
