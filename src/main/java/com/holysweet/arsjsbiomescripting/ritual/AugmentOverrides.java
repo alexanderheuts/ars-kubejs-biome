@@ -35,7 +35,8 @@ public record AugmentOverrides(
     }
 
     static AugmentOverrides load(CompoundTag tag) {
-        var biomeId = ResourceLocation.tryParse(tag.getString("targetBiome"));
+        var biomeId = tag.contains("targetBiome", Tag.TAG_STRING)
+                ? ResourceLocation.tryParse(tag.getString("targetBiome")) : null;
         return new AugmentOverrides(
                 biomeId == null ? null : ResourceKey.create(Registries.BIOME, biomeId),
                 tag.contains("radius", Tag.TAG_INT) ? tag.getInt("radius") : null,

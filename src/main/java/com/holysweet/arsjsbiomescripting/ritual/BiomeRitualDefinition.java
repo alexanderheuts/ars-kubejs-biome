@@ -12,7 +12,7 @@ import java.util.Set;
 
 public record BiomeRitualDefinition(
         ResourceLocation id, String name, String description, Item input,
-        Set<ResourceKey<Biome>> startingBiomes, ResourceKey<Biome> targetBiome,
+        Set<ResourceKey<Biome>> startingBiomes, @Nullable ResourceKey<Biome> targetBiome,
         int radius, int sourceCostPerBlock, BiomeRitualMode mode, LayerOverrides blocks,
         @Nullable RadiusAugment radiusAugment, Map<Item, RitualAugment> augments
 ) {

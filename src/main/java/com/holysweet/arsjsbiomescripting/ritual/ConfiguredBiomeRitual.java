@@ -38,6 +38,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     private String description = "";
     private ItemStack input = ItemStack.EMPTY;
     private boolean refundableInput;
+    @Nullable
     private ResourceKey<Biome> targetBiome;
     private BlockPos origin;
     private int radius;
@@ -56,6 +57,10 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         input = offeredItem;
         refundableInput = refundable;
         resolve(definition);
+    }
+
+    boolean hasStagedInput(ItemStack stack) {
+        return !input.isEmpty() && input.is(stack.getItem());
     }
 
     private void resolve(BiomeRitualDefinition definition) {
@@ -146,8 +151,10 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             return false;
         }
         var resolvedMode = stagedOverrides.mode() != null ? stagedOverrides.mode() : definition.mode();
-        return resolvedMode == BiomeRitualMode.BIOME_ONLY
-                || definition.blocks().then(stagedOverrides.blocks()).layer1() != null;
+        if (resolvedMode == BiomeRitualMode.BIOME_ONLY) {
+            return stagedOverrides.targetBiome() != null || definition.targetBiome() != null;
+        }
+        return definition.blocks().then(stagedOverrides.blocks()).layer1() != null;
     }
 
     @Override
@@ -178,8 +185,10 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         if (!(getWorld() instanceof ServerLevel level) || (needsSourceNow() && getSourceCost() > 0)) {
             return;
         }
-        if (tracker == null || targetBiome == null || (islandBlocks != null && !islandBlocks.isValid())
-                || !level.registryAccess().registryOrThrow(Registries.BIOME).containsKey(targetBiome.location())) {
+        ResourceKey<Biome> biome = targetBiome;
+        if (tracker == null || (biome == null && mode == BiomeRitualMode.BIOME_ONLY)
+                || (islandBlocks != null && !islandBlocks.isValid())
+                || (biome != null && !level.registryAccess().registryOrThrow(Registries.BIOME).containsKey(biome.location()))) {
             setFinished();
             markProgress(level);
             return;
@@ -195,7 +204,9 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
                     continue;
                 }
             }
-            RitualUtil.changeBiome(level, pos, targetBiome);
+            if (biome != null) {
+                RitualUtil.changeBiome(level, pos, biome);
+            }
         }
         queueBatch(level);
     }
@@ -293,11 +304,13 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     public void write(HolderLookup.Provider registries, CompoundTag tag) {
         super.write(registries, tag);
         CompoundTag state = new CompoundTag();
-        if (definitionId != null && targetBiome != null) {
+        if (definitionId != null) {
             state.putString("definition", definitionId.toString());
             state.putString("name", name);
             state.putString("description", description);
-            state.putString("targetBiome", targetBiome.location().toString());
+            if (targetBiome != null) {
+                state.putString("targetBiome", targetBiome.location().toString());
+            }
             state.putInt("radius", radius);
             state.putInt("sourceCost", sourceCostPerBlock);
             state.putString("mode", mode.name());
@@ -327,7 +340,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             definitionId = ResourceLocation.tryParse(state.getString("definition"));
             name = state.getString("name");
             description = state.getString("description");
-            ResourceLocation target = ResourceLocation.tryParse(state.getString("targetBiome"));
+            ResourceLocation target = state.contains("targetBiome", Tag.TAG_STRING)
+                    ? ResourceLocation.tryParse(state.getString("targetBiome")) : null;
             targetBiome = target == null ? null : ResourceKey.create(Registries.BIOME, target);
             radius = state.getInt("radius");
             sourceCostPerBlock = state.getInt("sourceCost");

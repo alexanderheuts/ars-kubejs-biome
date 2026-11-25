@@ -27,7 +27,7 @@ Call `event.ritual(id, options)` once for each definition. Use a unique, stable 
 | `description` | String | Yes | None | Non-empty description shown in the brazier tooltip. |
 | `input` | Item ID string | Yes | None | A registered, non-air item offered to an empty Ritual Brazier, such as `minecraft:sand`. |
 | `startingBiomes` | Array of biome ID strings | No | Any biome | Non-empty list of biomes where the ritual can be loaded and started. The addon checks the biome at the brazier. Use an array even for one biome. |
-| `targetBiome` | Biome ID string | Yes | None | Registered biome applied in the ritual footprint. |
+| `targetBiome` | Biome ID string | For `BiomeOnly` | None | Registered biome applied in the ritual footprint. A placement ritual with this option omitted leaves the biome unchanged. |
 | `defaultMode` | String | No | `'Islands'` | `'Islands'` fills air. `'Replace'` replaces non-air positions. `'ReplaceAndFill'` replaces non-air positions and fills air. `'BiomeOnly'` changes the biome without placing blocks. |
 | `blocks` | Object | For `Islands`, `Replace`, and `ReplaceAndFill` | None | Block IDs for the depth bands listed below. |
 | `radius` | Integer from 1 to 64 | No | `7` | Radius in blocks used to select positions around the brazier. The biome change uses Ars Nouveau's biome placement helper. |
@@ -53,6 +53,19 @@ The [terracotta island example](../examples/kubejs/server_scripts/terracotta_isl
 The [Plains replacement example](../examples/kubejs/server_scripts/replace_with_plains.js) uses a grass block to replace occupied positions with grass and dirt. Try it on a small test structure with open gaps so you can check that those gaps stay air.
 
 The [Swamp replacement and fill example](../examples/kubejs/server_scripts/replace_and_fill_swamp.js) uses a clay ball to replace occupied positions and fill air with grass and mud. In a test structure, both the original blocks and the gaps should change within the footprint.
+
+### Place fluids without changing the biome
+
+Use a registered liquid block ID such as `minecraft:water` or `minecraft:lava` for a layer and omit `targetBiome`. The ritual places source blocks at eligible positions. Normal fluid flow can carry liquid beyond the placement footprint.
+
+The [fluid generator examples](../examples/kubejs/server_scripts/fluid_generators.js) define two standalone rituals:
+
+| Ritual | Input | Mode | Radius | Source per eligible position |
+| --- | --- | --- | --- | --- |
+| Water source | Water bucket | `Islands` | 3 | 10 |
+| Lava pit | Magma cream | `Replace` | 5 | 100 |
+
+The water ritual consumes the loaded water bucket in survival, like any other ritual input. The lava pit only replaces occupied positions. Both leave the biome unchanged.
 
 ## Configure radius augments
 
@@ -98,7 +111,7 @@ augments: [
 ]
 ```
 
-Supported override keys are `targetBiome`, `radius`, `sourceCostPerBlock`, `mode`, and `blocks`. Every key is optional, but an entry must supply an override. `blocks` can name any of the four layer keys. An augment switching to a placement mode needs a top-layer block from the base ritual or that augment.
+Supported override keys are `targetBiome`, `radius`, `sourceCostPerBlock`, `mode`, and `blocks`. Every key is optional, but an entry must supply an override. `blocks` can name any of the four layer keys. An augment switching to a placement mode needs a top-layer block from the base ritual or that augment. An augment switching to `BiomeOnly` likewise needs a target biome from the base ritual or that augment.
 
 Offers affecting different settings combine, and the last offer to set a value wins for that setting or individual block layer. Block inheritance runs after the overrides. A custom `radius` replaces the radius accumulated so far, and any radius augment offered afterward adds to it. The starting biome and ritual input still select the base ritual. See the [augment example](../examples/kubejs/server_scripts/ritual_augments.js) for a loadable script.
 

@@ -85,13 +85,19 @@ public final class BiomeRitualRegistration implements KubeEvent {
         if (mode != BiomeRitualMode.BIOME_ONLY && blocks.layer1() == null) {
             throw invalid("blocks.layer1", null, "required for a block-placing mode");
         }
+        ResourceKey<Biome> targetBiome = options.containsKey("targetBiome")
+                ? biome("targetBiome", options.get("targetBiome")) : null;
+        if (mode == BiomeRitualMode.BIOME_ONLY && targetBiome == null) {
+            throw invalid("targetBiome", null, "required for BiomeOnly");
+        }
         var definition = new BiomeRitualDefinition(
                 ritualId, requiredText("name", options.get("name")),
                 requiredText("description", options.get("description")), item,
-                startingBiomes(options.get("startingBiomes")), biome("targetBiome", options.get("targetBiome")),
+                startingBiomes(options.get("startingBiomes")), targetBiome,
                 integer("radius", options.getOrDefault("radius", 7), 1, 64),
                 integer("sourceCostPerBlock", options.getOrDefault("sourceCostPerBlock", 10), 0, Integer.MAX_VALUE / 5),
-                mode, blocks, radiusAugment(options.get("radiusAugment")), augments(options.get("augments"), blocks)
+                mode, blocks, radiusAugment(options.get("radiusAugment")),
+                augments(options.get("augments"), blocks, targetBiome)
         );
         for (var existing : definitions) {
             if (existing.id().equals(ritualId)) {
@@ -136,7 +142,8 @@ public final class BiomeRitualRegistration implements KubeEvent {
         return item;
     }
 
-    private Map<Item, RitualAugment> augments(Object value, LayerOverrides baseBlocks) {
+    private Map<Item, RitualAugment> augments(Object value, LayerOverrides baseBlocks,
+                                             @Nullable ResourceKey<Biome> baseTargetBiome) {
         if (value == null) {
             return Map.of();
         }
@@ -153,6 +160,11 @@ public final class BiomeRitualRegistration implements KubeEvent {
             int maxCount = entry.containsKey("maxCount")
                     ? integer(field + ".maxCount", entry.get("maxCount"), 1, Integer.MAX_VALUE) : 1;
             AugmentOverrides overrides = augmentOverrides(field + ".overrides", entry.get("overrides"));
+            if (overrides.mode() == BiomeRitualMode.BIOME_ONLY && overrides.targetBiome() == null
+                    && baseTargetBiome == null) {
+                throw invalid(field + ".overrides.targetBiome", null,
+                        "required when switching to BiomeOnly without a base target biome");
+            }
             if (overrides.mode() != null && overrides.mode() != BiomeRitualMode.BIOME_ONLY
                     && baseBlocks.then(overrides.blocks()).layer1() == null) {
                 throw invalid(field + ".overrides.blocks.layer1", null,
