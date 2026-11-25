@@ -28,8 +28,8 @@ Call `event.ritual(id, options)` once for each definition. Use a unique, stable 
 | `input` | Item ID string | Yes | None | A registered, non-air item offered to an empty Ritual Brazier, such as `minecraft:sand`. |
 | `startingBiomes` | Array of biome ID strings | No | Any biome | Non-empty list of biomes where the ritual can be loaded and started. The addon checks the biome at the brazier. Use an array even for one biome. |
 | `targetBiome` | Biome ID string | Yes | None | Registered biome applied in the ritual footprint. |
-| `defaultMode` | String | No | `'Islands'` | `'Islands'` fills air. `'Replace'` replaces non-air positions, including fluids and player builds. `'BiomeOnly'` changes the biome without placing blocks. |
-| `blocks` | Object | For `Islands` and `Replace` | None | Block IDs for the depth bands listed below. |
+| `defaultMode` | String | No | `'Islands'` | `'Islands'` fills air. `'Replace'` replaces non-air positions. `'ReplaceAndFill'` replaces non-air positions and fills air. `'BiomeOnly'` changes the biome without placing blocks. |
+| `blocks` | Object | For `Islands`, `Replace`, and `ReplaceAndFill` | None | Block IDs for the depth bands listed below. |
 | `radius` | Integer from 1 to 64 | No | `7` | Radius in blocks used to select positions around the brazier. The biome change uses Ars Nouveau's biome placement helper. |
 | `sourceCostPerBlock` | Integer from 0 to 429496729 | No | `10` | Source charged per processed position. `0` makes the ritual free. |
 
@@ -37,7 +37,7 @@ Use specific item and biome IDs. For a minimal runnable script with unrestricted
 
 ## Define placement layers
 
-For `Islands` and `Replace`, set `blocks.layer1` to a registered, non-air block ID. Use the optional keys to change the material farther below the brazier. Both modes use the same footprint.
+For placement modes, set `blocks.layer1` to a registered, non-air block ID. Use the optional keys to change the material farther below the brazier. All three placement modes use the same footprint.
 
 | Key | Depth below the brazier | Required | Default |
 | --- | --- | --- | --- |
@@ -48,13 +48,15 @@ For `Islands` and `Replace`, set `blocks.layer1` to a registered, non-air block 
 
 The [terracotta island example](../examples/kubejs/server_scripts/terracotta_island.js) uses four colors and targets Badlands. It omits `startingBiomes` so an ordinary terracotta block can load it in any biome.
 
-The [Plains replacement example](../examples/kubejs/server_scripts/replace_with_plains.js) uses a brick to replace occupied positions with grass and dirt. Try it on a small test structure with open gaps so you can check that those gaps stay air.
+The [Plains replacement example](../examples/kubejs/server_scripts/replace_with_plains.js) uses a grass block to replace occupied positions with grass and dirt. Try it on a small test structure with open gaps so you can check that those gaps stay air.
+
+The [Swamp replacement and fill example](../examples/kubejs/server_scripts/replace_and_fill_swamp.js) uses a clay ball to replace occupied positions and fill air with grass and mud. In a test structure, both the original blocks and the gaps should change within the footprint.
 
 ## Use the brazier
 
 1. With the input in your main hand, right-click an empty Ars Nouveau Ritual Brazier to load the ritual. In survival this uses one item. Breaking the brazier before starting returns that item.
 2. Right-click the brazier with an empty main hand to start. If the input has no matching ritual for the biome, the brazier stays idle and the item stays in your hand when you try to load it.
-3. `Islands` fills air and preserves existing terrain and fluids. `Replace` changes occupied positions and preserves air. Both apply the target biome at eligible placement positions. `BiomeOnly` applies the target biome directly. The brazier pays up front in batches of up to five eligible positions. At the default cost, a full batch costs 50 Source. If nearby jars cannot cover a batch, the brazier pauses and retries automatically. A partial final batch costs only as much as the positions it processes.
+3. `Islands` fills air and preserves existing terrain and fluids. `Replace` changes occupied positions and preserves air. `ReplaceAndFill` changes both. Both replacement modes can overwrite fluids and player builds. Placement modes apply the target biome at eligible placement positions, while `BiomeOnly` applies it directly. The brazier pays up front in batches of up to five eligible positions. At the default cost, a full batch costs 50 Source. If nearby jars cannot cover a batch, the brazier pauses and retries automatically. A partial final batch costs only as much as the positions it processes.
 
 Definitions are looked up again when a loaded ritual starts. A running ritual saves its resolved settings and progress, so scripts can change without changing that run.
 

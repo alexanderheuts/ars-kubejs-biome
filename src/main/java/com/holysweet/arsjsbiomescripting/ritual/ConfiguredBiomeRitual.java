@@ -151,7 +151,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     }
 
     private boolean acceptsPosition(ServerLevel level, BlockPos pos) {
-        return mode == BiomeRitualMode.BIOME_ONLY || mode.accepts(level.isEmptyBlock(pos));
+        return mode == BiomeRitualMode.BIOME_ONLY || mode == BiomeRitualMode.REPLACE_AND_FILL
+                || mode.accepts(level.isEmptyBlock(pos));
     }
 
     private boolean isInFootprint(BlockPos pos, int depth) {
@@ -198,7 +199,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     @Override
     public int getSourceCost() {
         int count = batch.length;
-        if (islandBlocks != null && getWorld() instanceof ServerLevel level) {
+        if ((mode == BiomeRitualMode.ISLANDS || mode == BiomeRitualMode.REPLACE)
+                && getWorld() instanceof ServerLevel level) {
             count = 0;
             for (long position : batch) {
                 if (acceptsPosition(level, BlockPos.of(position))) {
@@ -254,10 +256,11 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         islandBlocks = state.contains("islandBlocks", Tag.TAG_COMPOUND)
                 ? IslandBlocks.load(state.getCompound("islandBlocks")) : null;
         // Saves before mode was recorded already distinguish BiomeOnly and Islands by their block layers.
-        mode = islandBlocks == null ? BiomeRitualMode.BIOME_ONLY : BiomeRitualMode.ISLANDS;
-        if (BiomeRitualMode.REPLACE.name().equals(state.getString("mode")) && islandBlocks != null) {
-            mode = BiomeRitualMode.REPLACE;
-        }
+        mode = islandBlocks == null ? BiomeRitualMode.BIOME_ONLY : switch (state.getString("mode")) {
+            case "REPLACE" -> BiomeRitualMode.REPLACE;
+            case "REPLACE_AND_FILL" -> BiomeRitualMode.REPLACE_AND_FILL;
+            default -> BiomeRitualMode.ISLANDS;
+        };
         refundableInput = state.getBoolean("refundableInput");
         if (state.contains("tracker", Tag.TAG_COMPOUND)) {
             origin = BlockPos.of(state.getLong("origin"));

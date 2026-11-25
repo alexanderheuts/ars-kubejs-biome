@@ -45,8 +45,8 @@ public final class BiomeRitualRegistration implements KubeEvent {
                 case "BiomeOnly" -> BiomeRitualMode.BIOME_ONLY;
                 case "Islands" -> BiomeRitualMode.ISLANDS;
                 case "Replace" -> BiomeRitualMode.REPLACE;
-                case "ReplaceAndFill" -> throw invalid("defaultMode", mode, "mode is not available yet");
-                default -> throw invalid("defaultMode", mode, "expected BiomeOnly, Islands, or Replace");
+                case "ReplaceAndFill" -> BiomeRitualMode.REPLACE_AND_FILL;
+                default -> throw invalid("defaultMode", mode, "expected BiomeOnly, Islands, Replace, or ReplaceAndFill");
             };
             define(id, options, ritualMode);
         } catch (IllegalArgumentException exception) {
