@@ -1,6 +1,7 @@
 package com.holysweet.arsjsbiomescripting;
 
 import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
+import com.holysweet.arsjsbiomescripting.crafting.BiomeRecipeSerializers;
 import com.holysweet.arsjsbiomescripting.ritual.ConfiguredBiomeRitual;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -11,6 +12,7 @@ public class ArsNouveauKubeJSBiomeScripting {
     public static final String MODID = "arsjsbiomescripting";
 
     public ArsNouveauKubeJSBiomeScripting(IEventBus modBus) {
+        BiomeRecipeSerializers.register(modBus);
         modBus.addListener(this::registerRitual);
     }
 
