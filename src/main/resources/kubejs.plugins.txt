@@ -1,0 +1,1 @@
+com.holysweet.arsjsbiomescripting.kubejs.BiomeRitualKubePlugin

@@ -121,7 +121,7 @@ configurations {
 dependencies {
     implementation "maven.modrinth:TKB6INcv:${ars_nouveau_release}"
     localRuntime "top.theillusivec4.curios:curios-neoforge:${curios_version}"
-    localRuntime "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+    implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
 
     // The distribution JAR bundles KubeJS's other runtime libraries.
     implementation("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }

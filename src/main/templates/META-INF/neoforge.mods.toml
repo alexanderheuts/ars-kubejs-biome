@@ -19,8 +19,8 @@ description='''
 An Ars Nouveau & KubeJS addon specifically aimed at biome conversion and biome dependent magic.
 '''
 
-#[[mixins]]
-#config="${mod_id}.mixins.json"
+[[mixins]]
+config="${mod_id}.mixins.json"
 
 #[[accessTransformers]]
 #file="META-INF/accesstransformer.cfg"

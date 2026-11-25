@@ -1,4 +1,17 @@
 
+## Biome-only ritual test
+
+See the [KubeJS API reference](docs/kubejs.md) for registration, supported parameters, and defaults.
+
+The [sand-to-desert example](examples/kubejs/server_scripts/sand_to_desert.js) registers a biome-only ritual through `BiomeRitualEvents.register`. Copy the script into the instance's `kubejs/server_scripts` directory and open a world or use `/reload`.
+
+1. Place an empty Ars Nouveau Ritual Brazier in a biome other than Desert so the change is visible.
+2. Right-click it with vanilla sand to load the ritual, then right-click with an empty main hand to start it.
+3. For the Source check, start with no charged Source Jar nearby. The ritual should wait. Supply Source within six blocks of the brazier and check that it resumes. The example charges 10 Source per processed position, up to 50 per batch.
+4. Check the biome with F3 near the brazier and confirm the terrain stayed intact.
+
+The example works from any starting biome. To test biome filtering, add `startingBiomes: ['minecraft:plains']` to the definition, reload, and try a fresh brazier outside Plains. It should leave the sand in your hand.
+
 Installation information
 =======
 
