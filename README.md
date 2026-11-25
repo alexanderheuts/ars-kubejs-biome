@@ -1,7 +1,7 @@
 
 ## Biome-only ritual test
 
-See the [KubeJS API reference](docs/kubejs.md) for registration, supported parameters, and defaults.
+See the [KubeJS API reference](docs/kubejs.md) for registration and parameters, and the [augment guide](docs/kubejs-augments.md) for built-in defaults, shared pack settings, and item-specific overrides.
 
 To test `Islands`, copy the [terracotta island example](examples/kubejs/server_scripts/terracotta_island.js) into the instance's `kubejs/server_scripts` directory. Place a brazier above open air with seven blocks of clearance below it, offer a plain terracotta block, and start the ritual with an empty main hand. With Source available, it creates a four-color terracotta island and changes the area to Badlands.
 
