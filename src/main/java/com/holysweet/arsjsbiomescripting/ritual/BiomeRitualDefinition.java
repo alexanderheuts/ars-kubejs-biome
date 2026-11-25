@@ -12,7 +12,7 @@ import java.util.Set;
 public record BiomeRitualDefinition(
         ResourceLocation id, String name, String description, Item input,
         Set<ResourceKey<Biome>> startingBiomes, ResourceKey<Biome> targetBiome,
-        int radius, int sourceCostPerBlock, @Nullable IslandBlocks islandBlocks
+        int radius, int sourceCostPerBlock, BiomeRitualMode mode, @Nullable IslandBlocks islandBlocks
 ) {
     public boolean accepts(Holder<Biome> biome) {
         return startingBiomes.isEmpty() || startingBiomes.stream().anyMatch(biome::is);

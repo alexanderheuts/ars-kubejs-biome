@@ -1,6 +1,7 @@
 package com.holysweet.arsjsbiomescripting.kubejs;
 
 import com.holysweet.arsjsbiomescripting.ritual.BiomeRitualDefinition;
+import com.holysweet.arsjsbiomescripting.ritual.BiomeRitualMode;
 import com.holysweet.arsjsbiomescripting.ritual.IslandBlocks;
 import dev.latvian.mods.kubejs.event.KubeEvent;
 import dev.latvian.mods.kubejs.script.ConsoleJS;
@@ -13,7 +14,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -41,13 +41,14 @@ public final class BiomeRitualRegistration implements KubeEvent {
             }
             Object value = options.getOrDefault("defaultMode", "Islands");
             String mode = requiredText("defaultMode", value);
-            switch (mode) {
-                case "BiomeOnly" -> define(id, options, null);
-                case "Islands" -> define(id, options, islandBlocks(options.get("blocks")));
-                case "Replace", "ReplaceAndFill" -> throw invalid("defaultMode", mode,
-                        "mode is not available yet; use Islands or BiomeOnly");
-                default -> throw invalid("defaultMode", mode, "unknown ritual mode; use Islands or BiomeOnly");
-            }
+            var ritualMode = switch (mode) {
+                case "BiomeOnly" -> BiomeRitualMode.BIOME_ONLY;
+                case "Islands" -> BiomeRitualMode.ISLANDS;
+                case "Replace" -> BiomeRitualMode.REPLACE;
+                case "ReplaceAndFill" -> throw invalid("defaultMode", mode, "mode is not available yet");
+                default -> throw invalid("defaultMode", mode, "expected BiomeOnly, Islands, or Replace");
+            };
+            define(id, options, ritualMode);
         } catch (IllegalArgumentException exception) {
             reportError(id, exception);
         }
@@ -56,7 +57,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
     @SuppressWarnings("unused") // Retained for existing KubeJS scripts.
     public void biomeOnly(String id, Map<String, Object> options) {
         try {
-            define(id, options, null);
+            define(id, options, BiomeRitualMode.BIOME_ONLY);
         } catch (IllegalArgumentException exception) {
             reportError(id, exception);
         }
@@ -66,7 +67,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
         ConsoleJS.SERVER.error("Biome ritual '" + id + "': " + exception.getMessage());
     }
 
-    private void define(String id, Map<String, Object> options, @Nullable IslandBlocks islandBlocks) {
+    private void define(String id, Map<String, Object> options, BiomeRitualMode mode) {
         var ritualId = resourceId("id", id);
         if (options == null) {
             throw invalid("options", null, "expected a definition object");
@@ -82,7 +83,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
                 startingBiomes(options.get("startingBiomes")), biome("targetBiome", options.get("targetBiome")),
                 integer("radius", options.getOrDefault("radius", 7), 1, 64),
                 integer("sourceCostPerBlock", options.getOrDefault("sourceCostPerBlock", 10), 0, Integer.MAX_VALUE / 5),
-                islandBlocks
+                mode, mode == BiomeRitualMode.BIOME_ONLY ? null : islandBlocks(options.get("blocks"))
         );
         for (var existing : definitions) {
             if (existing.id().equals(ritualId)) {
@@ -98,7 +99,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
 
     private static IslandBlocks islandBlocks(Object value) {
         if (!(value instanceof Map<?, ?> blocks)) {
-            throw invalid("blocks", value, "Islands requires an object with at least a layer1 block");
+            throw invalid("blocks", value, "expected an object with at least a layer1 block");
         }
         Block layer1 = block("blocks.layer1", blocks.get("layer1"));
         Block layer2 = optionalBlock(blocks, "layer2", layer1);

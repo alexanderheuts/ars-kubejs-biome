@@ -41,6 +41,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     private BlockPos origin;
     private int radius;
     private int sourceCostPerBlock;
+    private BiomeRitualMode mode = BiomeRitualMode.BIOME_ONLY;
     @Nullable
     private IslandBlocks islandBlocks;
     private ManhattenTracker tracker;
@@ -61,6 +62,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         targetBiome = definition.targetBiome();
         radius = definition.radius();
         sourceCostPerBlock = definition.sourceCostPerBlock();
+        mode = definition.mode();
         islandBlocks = definition.islandBlocks();
     }
 
@@ -113,8 +115,10 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             BlockPos pos = BlockPos.of(position);
             if (islandBlocks != null) {
                 int depth = origin.getY() - pos.getY();
-                if (!level.isEmptyBlock(pos)
-                        || !level.setBlock(pos, islandBlocks.atDepth(depth).defaultBlockState(), Block.UPDATE_ALL)) {
+                var current = level.getBlockState(pos);
+                var replacement = islandBlocks.atDepth(depth).defaultBlockState();
+                if (!mode.accepts(current.isAir())
+                        || (current != replacement && !level.setBlock(pos, replacement, Block.UPDATE_ALL))) {
                     continue;
                 }
             }
@@ -133,7 +137,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             }
             int depth = origin.getY() - next.getY();
             if (depth >= 1 && depth <= MAX_DEPTH && !level.isOutsideBuildHeight(next)
-                    && isInFootprint(next, depth) && (islandBlocks == null || level.isEmptyBlock(next))) {
+                    && isInFootprint(next, depth) && acceptsPosition(level, next)) {
                 positions[count++] = next.asLong();
             }
         }
@@ -144,6 +148,10 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             setNeedsSource(getSourceCost() > 0);
         }
         markProgress(level);
+    }
+
+    private boolean acceptsPosition(ServerLevel level, BlockPos pos) {
+        return mode == BiomeRitualMode.BIOME_ONLY || mode.accepts(level.isEmptyBlock(pos));
     }
 
     private boolean isInFootprint(BlockPos pos, int depth) {
@@ -193,7 +201,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         if (islandBlocks != null && getWorld() instanceof ServerLevel level) {
             count = 0;
             for (long position : batch) {
-                if (level.isEmptyBlock(BlockPos.of(position))) {
+                if (acceptsPosition(level, BlockPos.of(position))) {
                     count++;
                 }
             }
@@ -212,6 +220,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             state.putString("targetBiome", targetBiome.location().toString());
             state.putInt("radius", radius);
             state.putInt("sourceCost", sourceCostPerBlock);
+            state.putString("mode", mode.name());
         }
         if (!input.isEmpty()) {
             state.put("input", input.save(registries));
@@ -244,6 +253,11 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         input = ItemStack.parseOptional(registries, state.getCompound("input"));
         islandBlocks = state.contains("islandBlocks", Tag.TAG_COMPOUND)
                 ? IslandBlocks.load(state.getCompound("islandBlocks")) : null;
+        // Saves before mode was recorded already distinguish BiomeOnly and Islands by their block layers.
+        mode = islandBlocks == null ? BiomeRitualMode.BIOME_ONLY : BiomeRitualMode.ISLANDS;
+        if (BiomeRitualMode.REPLACE.name().equals(state.getString("mode")) && islandBlocks != null) {
+            mode = BiomeRitualMode.REPLACE;
+        }
         refundableInput = state.getBoolean("refundableInput");
         if (state.contains("tracker", Tag.TAG_COMPOUND)) {
             origin = BlockPos.of(state.getLong("origin"));
