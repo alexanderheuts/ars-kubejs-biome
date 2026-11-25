@@ -25,8 +25,13 @@ abstract class RitualBrazierBlockMixin {
             // Ars drops a registered tablet for staged rituals. Drop this ritual's actual input instead.
             var input = ritual.removeStagedInput();
             brazier.ritual = null;
-            if (!level.isClientSide() && !input.isEmpty()) {
-                Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), input);
+            if (!level.isClientSide()) {
+                if (!input.isEmpty()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), input);
+                }
+                for (var augment : ritual.getConsumedItems()) {
+                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), augment);
+                }
             }
         }
     }

@@ -2,7 +2,10 @@ package com.holysweet.arsjsbiomescripting.kubejs;
 
 import com.holysweet.arsjsbiomescripting.ritual.BiomeRitualDefinition;
 import com.holysweet.arsjsbiomescripting.ritual.BiomeRitualMode;
-import com.holysweet.arsjsbiomescripting.ritual.IslandBlocks;
+import com.holysweet.arsjsbiomescripting.ritual.AugmentOverrides;
+import com.holysweet.arsjsbiomescripting.ritual.LayerOverrides;
+import com.holysweet.arsjsbiomescripting.ritual.RadiusAugment;
+import com.holysweet.arsjsbiomescripting.ritual.RitualAugment;
 import dev.latvian.mods.kubejs.event.KubeEvent;
 import dev.latvian.mods.kubejs.script.ConsoleJS;
 import net.minecraft.core.Registry;
@@ -11,11 +14,14 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,16 +45,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
             if (options == null) {
                 throw invalid("options", null, "expected a definition object");
             }
-            Object value = options.getOrDefault("defaultMode", "Islands");
-            String mode = requiredText("defaultMode", value);
-            var ritualMode = switch (mode) {
-                case "BiomeOnly" -> BiomeRitualMode.BIOME_ONLY;
-                case "Islands" -> BiomeRitualMode.ISLANDS;
-                case "Replace" -> BiomeRitualMode.REPLACE;
-                case "ReplaceAndFill" -> BiomeRitualMode.REPLACE_AND_FILL;
-                default -> throw invalid("defaultMode", mode, "expected BiomeOnly, Islands, Replace, or ReplaceAndFill");
-            };
-            define(id, options, ritualMode);
+            define(id, options, mode("defaultMode", options.getOrDefault("defaultMode", "Islands")));
         } catch (IllegalArgumentException exception) {
             reportError(id, exception);
         }
@@ -67,15 +64,26 @@ public final class BiomeRitualRegistration implements KubeEvent {
         ConsoleJS.SERVER.error("Biome ritual '" + id + "': " + exception.getMessage());
     }
 
+    private static BiomeRitualMode mode(String field, Object value) {
+        return switch (requiredText(field, value)) {
+            case "BiomeOnly" -> BiomeRitualMode.BIOME_ONLY;
+            case "Islands" -> BiomeRitualMode.ISLANDS;
+            case "Replace" -> BiomeRitualMode.REPLACE;
+            case "ReplaceAndFill" -> BiomeRitualMode.REPLACE_AND_FILL;
+            default -> throw invalid(field, value, "expected BiomeOnly, Islands, Replace, or ReplaceAndFill");
+        };
+    }
+
     private void define(String id, Map<String, Object> options, BiomeRitualMode mode) {
         var ritualId = resourceId("id", id);
         if (options == null) {
             throw invalid("options", null, "expected a definition object");
         }
-        var itemId = resourceId("input", options.get("input"));
-        var item = BuiltInRegistries.ITEM.get(itemId);
-        if (item == Items.AIR) {
-            throw invalid("input", itemId, "expected a registered, non-air item");
+        Item item = item("input", options.get("input"));
+        LayerOverrides blocks = options.containsKey("blocks")
+                ? layerOverrides("blocks", options.get("blocks")) : LayerOverrides.EMPTY;
+        if (mode != BiomeRitualMode.BIOME_ONLY && blocks.layer1() == null) {
+            throw invalid("blocks.layer1", null, "required for a block-placing mode");
         }
         var definition = new BiomeRitualDefinition(
                 ritualId, requiredText("name", options.get("name")),
@@ -83,7 +91,7 @@ public final class BiomeRitualRegistration implements KubeEvent {
                 startingBiomes(options.get("startingBiomes")), biome("targetBiome", options.get("targetBiome")),
                 integer("radius", options.getOrDefault("radius", 7), 1, 64),
                 integer("sourceCostPerBlock", options.getOrDefault("sourceCostPerBlock", 10), 0, Integer.MAX_VALUE / 5),
-                mode, mode == BiomeRitualMode.BIOME_ONLY ? null : islandBlocks(options.get("blocks"))
+                mode, blocks, radiusAugment(options.get("radiusAugment")), augments(options.get("augments"), blocks)
         );
         for (var existing : definitions) {
             if (existing.id().equals(ritualId)) {
@@ -91,25 +99,110 @@ public final class BiomeRitualRegistration implements KubeEvent {
             }
             if (definition.overlaps(existing)) {
                 throw invalid("startingBiomes", options.get("startingBiomes"),
-                        "overlaps ritual '" + existing.id() + "' for input '" + itemId + "'");
+                        "overlaps ritual '" + existing.id() + "' for input '" + BuiltInRegistries.ITEM.getKey(item) + "'");
             }
         }
         definitions.add(definition);
     }
 
-    private static IslandBlocks islandBlocks(Object value) {
-        if (!(value instanceof Map<?, ?> blocks)) {
-            throw invalid("blocks", value, "expected an object with at least a layer1 block");
+    @Nullable
+    private static RadiusAugment radiusAugment(Object value) {
+        if (Boolean.FALSE.equals(value)) {
+            return null;
         }
-        Block layer1 = block("blocks.layer1", blocks.get("layer1"));
-        Block layer2 = optionalBlock(blocks, "layer2", layer1);
-        Block layer3To4 = optionalBlock(blocks, "layer3To4", layer2);
-        Block layer5Plus = optionalBlock(blocks, "layer5Plus", layer3To4);
-        return new IslandBlocks(layer1, layer2, layer3To4, layer5Plus);
+        Map<?, ?> options;
+        if (value == null) {
+            options = Map.of();
+        } else if (value instanceof Map<?, ?> map) {
+            options = map;
+        } else {
+            throw invalid("radiusAugment", value, "expected an options object or false");
+        }
+        Item item = item("radiusAugment.item",
+                options.containsKey("item") ? options.get("item") : "ars_nouveau:source_gem");
+        int increase = integer("radiusAugment.increase", options.containsKey("increase") ? options.get("increase") : 1,
+                1, RadiusAugment.MAX_ADDED_RADIUS);
+        int maxCount = integer("radiusAugment.maxCount", options.containsKey("maxCount") ? options.get("maxCount") : 64,
+                1, RadiusAugment.MAX_ADDED_RADIUS / increase);
+        return new RadiusAugment(item, increase, maxCount);
     }
 
-    private static Block optionalBlock(Map<?, ?> blocks, String field, Block fallback) {
-        return blocks.containsKey(field) ? block("blocks." + field, blocks.get(field)) : fallback;
+    private static Item item(String field, Object value) {
+        var id = resourceId(field, value);
+        var item = BuiltInRegistries.ITEM.get(id);
+        if (item == Items.AIR) {
+            throw invalid(field, value, "expected a registered, non-air item");
+        }
+        return item;
+    }
+
+    private Map<Item, RitualAugment> augments(Object value, LayerOverrides baseBlocks) {
+        if (value == null) {
+            return Map.of();
+        }
+        if (!(value instanceof List<?> list)) {
+            throw invalid("augments", value, "expected an array of augment definitions");
+        }
+        Map<Item, RitualAugment> result = new HashMap<>();
+        for (int index = 0; index < list.size(); index++) {
+            String field = "augments[" + index + "]";
+            if (!(list.get(index) instanceof Map<?, ?> entry)) {
+                throw invalid(field, list.get(index), "expected an augment object");
+            }
+            Item item = item(field + ".item", entry.get("item"));
+            int maxCount = entry.containsKey("maxCount")
+                    ? integer(field + ".maxCount", entry.get("maxCount"), 1, Integer.MAX_VALUE) : 1;
+            AugmentOverrides overrides = augmentOverrides(field + ".overrides", entry.get("overrides"));
+            if (overrides.mode() != null && overrides.mode() != BiomeRitualMode.BIOME_ONLY
+                    && baseBlocks.then(overrides.blocks()).layer1() == null) {
+                throw invalid(field + ".overrides.blocks.layer1", null,
+                        "required when switching to a block-placing mode without a base layer1");
+            }
+            if (result.putIfAbsent(item, new RitualAugment(maxCount, overrides)) != null) {
+                throw invalid(field + ".item", entry.get("item"), "already used by another custom augment");
+            }
+        }
+        return Map.copyOf(result);
+    }
+
+    private AugmentOverrides augmentOverrides(String field, Object value) {
+        if (!(value instanceof Map<?, ?> values) || values.isEmpty()) {
+            throw invalid(field, value, "expected a non-empty overrides object");
+        }
+        for (Object key : values.keySet()) {
+            if (!Set.of("targetBiome", "radius", "sourceCostPerBlock", "mode", "blocks").contains(key)) {
+                throw invalid(field + "." + key, values.get(key), "unknown override");
+            }
+        }
+        return new AugmentOverrides(
+                values.containsKey("targetBiome") ? biome(field + ".targetBiome", values.get("targetBiome")) : null,
+                values.containsKey("radius") ? integer(field + ".radius", values.get("radius"), 1, 64) : null,
+                values.containsKey("sourceCostPerBlock")
+                        ? integer(field + ".sourceCostPerBlock", values.get("sourceCostPerBlock"), 0, Integer.MAX_VALUE / 5)
+                        : null,
+                values.containsKey("mode") ? mode(field + ".mode", values.get("mode")) : null,
+                values.containsKey("blocks") ? layerOverrides(field + ".blocks", values.get("blocks")) : LayerOverrides.EMPTY
+        );
+    }
+
+    private static LayerOverrides layerOverrides(String field, Object value) {
+        if (!(value instanceof Map<?, ?> blocks)) {
+            throw invalid(field, value, "expected an object containing layer block IDs");
+        }
+        for (Object key : blocks.keySet()) {
+            if (!Set.of("layer1", "layer2", "layer3To4", "layer5Plus").contains(key)) {
+                throw invalid(field + "." + key, blocks.get(key), "unknown block layer");
+            }
+        }
+        return new LayerOverrides(
+                optionalBlock(blocks, field, "layer1"), optionalBlock(blocks, field, "layer2"),
+                optionalBlock(blocks, field, "layer3To4"), optionalBlock(blocks, field, "layer5Plus")
+        );
+    }
+
+    @Nullable
+    private static Block optionalBlock(Map<?, ?> blocks, String path, String field) {
+        return blocks.containsKey(field) ? block(path + "." + field, blocks.get(field)) : null;
     }
 
     private static Block block(String field, Object value) {

@@ -29,6 +29,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             ArsNouveauKubeJSBiomeScripting.MODID, "biome_only"
     );
     private static final int BATCH_SIZE = 5;
+    private static final int MAX_POSITIONS_SCANNED_PER_TICK = 4096;
     private static final int MAX_DEPTH = 7;
     private static final String STATE_TAG = "arsjsbiomescripting";
 
@@ -40,6 +41,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     private ResourceKey<Biome> targetBiome;
     private BlockPos origin;
     private int radius;
+    private int radiusBonus;
+    private AugmentOverrides stagedOverrides = AugmentOverrides.EMPTY;
     private int sourceCostPerBlock;
     private BiomeRitualMode mode = BiomeRitualMode.BIOME_ONLY;
     @Nullable
@@ -59,11 +62,13 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         definitionId = definition.id();
         name = definition.name();
         description = definition.description();
-        targetBiome = definition.targetBiome();
-        radius = definition.radius();
-        sourceCostPerBlock = definition.sourceCostPerBlock();
-        mode = definition.mode();
-        islandBlocks = definition.islandBlocks();
+        targetBiome = stagedOverrides.targetBiome() != null ? stagedOverrides.targetBiome() : definition.targetBiome();
+        radius = (stagedOverrides.radius() != null ? stagedOverrides.radius() : definition.radius()) + radiusBonus;
+        sourceCostPerBlock = stagedOverrides.sourceCostPerBlock() != null
+                ? stagedOverrides.sourceCostPerBlock() : definition.sourceCostPerBlock();
+        mode = stagedOverrides.mode() != null ? stagedOverrides.mode() : definition.mode();
+        islandBlocks = mode == BiomeRitualMode.BIOME_ONLY ? null
+                : definition.blocks().then(stagedOverrides.blocks()).resolve();
     }
 
     @Nullable
@@ -71,12 +76,78 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         return BiomeRituals.match(input.getItem(), level.getBiome(position));
     }
 
+    @Nullable
+    private BiomeRitualDefinition stagedDefinition() {
+        Level level = getWorld();
+        BlockPos pos = getPos();
+        if (input.isEmpty() || level == null || pos == null || isRunning() || isDone()) {
+            return null;
+        }
+        return currentDefinition(level, pos);
+    }
+
+    boolean isAugment(ItemStack stack) {
+        var definition = stagedDefinition();
+        return definition != null && (definition.augments().containsKey(stack.getItem())
+                || (definition.radiusAugment() != null && stack.is(definition.radiusAugment().item())));
+    }
+
+    @Override
+    public boolean canConsumeItem(ItemStack stack) {
+        var definition = stagedDefinition();
+        return definition != null && canAcceptAugment(definition, stack);
+    }
+
+    private boolean canAcceptAugment(BiomeRitualDefinition definition, ItemStack stack) {
+        var item = stack.getItem();
+        int count = itemConsumedCount(consumed -> consumed.is(item));
+        var custom = definition.augments().get(item);
+        if (custom != null) {
+            return count < custom.maxCount();
+        }
+        var radiusAugment = definition.radiusAugment();
+        return radiusAugment != null && stack.is(radiusAugment.item()) && count < radiusAugment.maxCount()
+                && radiusBonus <= RadiusAugment.MAX_ADDED_RADIUS - radiusAugment.increase();
+    }
+
+    @Override
+    public void onItemConsumed(ItemStack stack) {
+        var definition = stagedDefinition();
+        if (definition == null || !canAcceptAugment(definition, stack)) {
+            return;
+        }
+        var custom = definition.augments().get(stack.getItem());
+        if (custom != null) {
+            stagedOverrides = stagedOverrides.then(custom.overrides());
+            if (custom.overrides().radius() != null) {
+                radiusBonus = 0;
+            }
+        } else {
+            var radiusAugment = definition.radiusAugment();
+            if (radiusAugment != null) {
+                radiusBonus += radiusAugment.increase();
+            }
+        }
+        resolve(definition);
+        super.onItemConsumed(stack);
+        tile.setChanged();
+    }
+
     @Override
     public boolean canStart(@Nullable Player player) {
         Level level = getWorld();
         BlockPos position = getPos();
         return !input.isEmpty() && level != null && position != null
-                && (level.isClientSide() || currentDefinition(level, position) != null);
+                && (level.isClientSide() || canResolve(currentDefinition(level, position)));
+    }
+
+    private boolean canResolve(@Nullable BiomeRitualDefinition definition) {
+        if (definition == null) {
+            return false;
+        }
+        var resolvedMode = stagedOverrides.mode() != null ? stagedOverrides.mode() : definition.mode();
+        return resolvedMode == BiomeRitualMode.BIOME_ONLY
+                || definition.blocks().then(stagedOverrides.blocks()).layer1() != null;
     }
 
     @Override
@@ -86,10 +157,12 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             return;
         }
         var definition = currentDefinition(level, position);
-        if (definition == null) {
+        if (definition == null || !canResolve(definition)) {
             return;
         }
         resolve(definition);
+        radiusBonus = 0;
+        stagedOverrides = AugmentOverrides.EMPTY;
         origin = position.immutable();
         tracker = islandBlocks == null
                 ? new ManhattenTracker(origin.below(3), radius, 2, radius)
@@ -130,22 +203,27 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     private void queueBatch(ServerLevel level) {
         long[] positions = new long[BATCH_SIZE];
         int count = 0;
-        while (count < BATCH_SIZE) {
+        boolean exhausted = false;
+        for (int scanned = 0; count < BATCH_SIZE && scanned < MAX_POSITIONS_SCANNED_PER_TICK; scanned++) {
             BlockPos next = tracker.computeNext();
             if (next == null) {
+                exhausted = true;
                 break;
             }
             int depth = origin.getY() - next.getY();
-            if (depth >= 1 && depth <= MAX_DEPTH && !level.isOutsideBuildHeight(next)
+            if (depth >= 1 && depth <= MAX_DEPTH && level.isInWorldBounds(next)
                     && isInFootprint(next, depth) && acceptsPosition(level, next)) {
                 positions[count++] = next.asLong();
             }
         }
         batch = Arrays.copyOf(positions, count);
-        if (count == 0) {
+        if (count == 0 && exhausted) {
             setFinished();
         } else {
-            setNeedsSource(getSourceCost() > 0);
+            boolean needsSource = getSourceCost() > 0;
+            if (needsSourceNow() != needsSource) {
+                setNeedsSource(needsSource);
+            }
         }
         markProgress(level);
     }
@@ -160,10 +238,10 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             return pos.distSqr(origin) <= (double) radius * radius;
         }
         // Scale the width of each layer while keeping the depth fixed.
-        int dx = pos.getX() - origin.getX();
-        int dz = pos.getZ() - origin.getZ();
+        double dx = (double) pos.getX() - origin.getX();
+        double dz = (double) pos.getZ() - origin.getZ();
         int depthSquared = MAX_DEPTH * MAX_DEPTH;
-        return (dx * dx + dz * dz) * depthSquared <= radius * radius * (depthSquared - depth * depth);
+        return (dx * dx + dz * dz) * depthSquared <= (double) radius * radius * (depthSquared - depth * depth);
     }
 
     private void markProgress(ServerLevel level) {
@@ -227,6 +305,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         if (!input.isEmpty()) {
             state.put("input", input.save(registries));
             state.putBoolean("refundableInput", refundableInput);
+            state.putInt("radiusBonus", radiusBonus);
+            state.put("augmentOverrides", stagedOverrides.save());
         }
         if (islandBlocks != null) {
             state.put("islandBlocks", islandBlocks.save());
@@ -262,6 +342,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             default -> BiomeRitualMode.ISLANDS;
         };
         refundableInput = state.getBoolean("refundableInput");
+        radiusBonus = state.getInt("radiusBonus");
+        stagedOverrides = AugmentOverrides.load(state.getCompound("augmentOverrides"));
         if (state.contains("tracker", Tag.TAG_COMPOUND)) {
             origin = BlockPos.of(state.getLong("origin"));
             tracker = new ManhattenTracker(state.getCompound("tracker"));

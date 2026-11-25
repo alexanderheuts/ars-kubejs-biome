@@ -7,12 +7,14 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.biome.Biome;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
 import java.util.Set;
 
 public record BiomeRitualDefinition(
         ResourceLocation id, String name, String description, Item input,
         Set<ResourceKey<Biome>> startingBiomes, ResourceKey<Biome> targetBiome,
-        int radius, int sourceCostPerBlock, BiomeRitualMode mode, @Nullable IslandBlocks islandBlocks
+        int radius, int sourceCostPerBlock, BiomeRitualMode mode, LayerOverrides blocks,
+        @Nullable RadiusAugment radiusAugment, Map<Item, RitualAugment> augments
 ) {
     public boolean accepts(Holder<Biome> biome) {
         return startingBiomes.isEmpty() || startingBiomes.stream().anyMatch(biome::is);

@@ -62,8 +62,16 @@ public final class BiomeRituals {
         if (event.getLevel().isClientSide() || event.getHand() != InteractionHand.MAIN_HAND
                 || event.getItemStack().isEmpty()
                 || !(event.getLevel().getBlockState(event.getPos()).getBlock() instanceof RitualBrazierBlock)
-                || !(event.getLevel().getBlockEntity(event.getPos()) instanceof RitualBrazierTile brazier)
-                || brazier.ritual != null) {
+                || !(event.getLevel().getBlockEntity(event.getPos()) instanceof RitualBrazierTile brazier)) {
+            return;
+        }
+
+        if (brazier.ritual != null) {
+            if (brazier.ritual instanceof ConfiguredBiomeRitual ritual && ritual.isAugment(event.getItemStack())) {
+                boolean accepted = brazier.tryBurnStack(event.getItemStack());
+                event.setCanceled(true);
+                event.setCancellationResult(accepted ? InteractionResult.SUCCESS : InteractionResult.FAIL);
+            }
             return;
         }
 

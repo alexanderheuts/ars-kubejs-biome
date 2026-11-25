@@ -32,6 +32,8 @@ Call `event.ritual(id, options)` once for each definition. Use a unique, stable 
 | `blocks` | Object | For `Islands`, `Replace`, and `ReplaceAndFill` | None | Block IDs for the depth bands listed below. |
 | `radius` | Integer from 1 to 64 | No | `7` | Radius in blocks used to select positions around the brazier. The biome change uses Ars Nouveau's biome placement helper. |
 | `sourceCostPerBlock` | Integer from 0 to 429496729 | No | `10` | Source charged per processed position. `0` makes the ritual free. |
+| `radiusAugment` | Object or `false` | No | Source Gem, +1 per item, up to 64 items | Configures radius augments. Use `false` to disable them for a ritual. |
+| `augments` | Array of objects | No | Empty array | Optional item-specific overrides applied when the items are offered to the staged brazier. |
 
 Use specific item and biome IDs. For a minimal runnable script with unrestricted starting biomes, see the [sand-to-desert example](../examples/kubejs/server_scripts/sand_to_desert.js).
 
@@ -51,6 +53,54 @@ The [terracotta island example](../examples/kubejs/server_scripts/terracotta_isl
 The [Plains replacement example](../examples/kubejs/server_scripts/replace_with_plains.js) uses a grass block to replace occupied positions with grass and dirt. Try it on a small test structure with open gaps so you can check that those gaps stay air.
 
 The [Swamp replacement and fill example](../examples/kubejs/server_scripts/replace_and_fill_swamp.js) uses a clay ball to replace occupied positions and fill air with grass and mud. In a test structure, both the original blocks and the gaps should change within the footprint.
+
+## Configure radius augments
+
+Load a ritual into the brazier, then right-click with the augment item in your main hand before starting. The brazier accepts one item per offer. It can also take augments dropped nearby, following normal Ars behavior. Increases add to the base radius, and the number of accepted items is capped per ritual. The base layer depth stays fixed.
+
+```js
+radiusAugment: {
+  item: 'minecraft:amethyst_shard',
+  increase: 2,
+  maxCount: 8
+}
+```
+
+| Option | Type | Required | Default |
+| --- | --- | --- | --- |
+| `item` | Registered, non-air item ID string | No | `'ars_nouveau:source_gem'` |
+| `increase` | Positive integer | No | `1` |
+| `maxCount` | Positive integer | No | `64` |
+
+Omitting the entire object uses all three defaults. Breaking a staged brazier returns the accepted augment items along with the consumed ritual input. Once the ritual starts, its resolved radius is saved with the run.
+
+## Override settings by augment item
+
+Each entry in `augments` has an `item` ID and an `overrides` object. The optional `maxCount` is a positive integer and defaults to `1`. A ritual can use each custom augment item once in its definition. If a custom augment uses the same item as the radius augment, the custom rule takes precedence for that item.
+
+```js
+augments: [
+  {
+    item: 'minecraft:amethyst_shard',
+    overrides: {
+      targetBiome: 'ars_nouveau:archwood_forest',
+      mode: 'Islands',
+      blocks: {
+        layer1: 'ars_nouveau:purple_archwood_log',
+        layer2: 'ars_nouveau:stripped_purple_archwood_log'
+      }
+    }
+  },
+  {
+    item: 'minecraft:copper_ingot',
+    overrides: { sourceCostPerBlock: 0 }
+  }
+]
+```
+
+Supported override keys are `targetBiome`, `radius`, `sourceCostPerBlock`, `mode`, and `blocks`. Every key is optional, but an entry must supply an override. `blocks` can name any of the four layer keys. An augment switching to a placement mode needs a top-layer block from the base ritual or that augment.
+
+Offers affecting different settings combine, and the last offer to set a value wins for that setting or individual block layer. Block inheritance runs after the overrides. A custom `radius` replaces the radius accumulated so far, and any radius augment offered afterward adds to it. The starting biome and ritual input still select the base ritual. See the [augment example](../examples/kubejs/server_scripts/ritual_augments.js) for a loadable script.
 
 ## Use the brazier
 
