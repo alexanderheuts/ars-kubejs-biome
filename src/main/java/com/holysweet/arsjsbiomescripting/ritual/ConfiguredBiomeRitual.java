@@ -42,6 +42,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
     private ResourceKey<Biome> targetBiome;
     private BlockPos origin;
     private int radius;
+    private int placementDepth = MAX_DEPTH;
     private int radiusBonus;
     private AugmentOverrides stagedOverrides = AugmentOverrides.EMPTY;
     private int sourceCostPerBlock;
@@ -69,6 +70,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         description = definition.description();
         targetBiome = stagedOverrides.targetBiome() != null ? stagedOverrides.targetBiome() : definition.targetBiome();
         radius = (stagedOverrides.radius() != null ? stagedOverrides.radius() : definition.radius()) + radiusBonus;
+        placementDepth = Math.min(radius, MAX_DEPTH);
         sourceCostPerBlock = stagedOverrides.sourceCostPerBlock() != null
                 ? stagedOverrides.sourceCostPerBlock() : definition.sourceCostPerBlock();
         mode = stagedOverrides.mode() != null ? stagedOverrides.mode() : definition.mode();
@@ -173,7 +175,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         origin = position.immutable();
         tracker = islandBlocks == null
                 ? new ManhattenTracker(origin.below(3), radius, 2, radius)
-                : new ManhattenTracker(origin.below(4), radius, 3, radius);
+                : new ManhattenTracker(origin.below((placementDepth + 1) / 2), radius, placementDepth / 2, radius);
         input = ItemStack.EMPTY;
         refundableInput = false;
         super.onStart(player);
@@ -215,6 +217,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         long[] positions = new long[BATCH_SIZE];
         int count = 0;
         boolean exhausted = false;
+        int depthLimit = islandBlocks == null ? MAX_DEPTH : placementDepth;
         for (int scanned = 0; count < BATCH_SIZE && scanned < MAX_POSITIONS_SCANNED_PER_TICK; scanned++) {
             BlockPos next = tracker.computeNext();
             if (next == null) {
@@ -222,7 +225,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
                 break;
             }
             int depth = origin.getY() - next.getY();
-            if (depth >= 1 && depth <= MAX_DEPTH && level.isInWorldBounds(next)
+            if (depth >= 1 && depth <= depthLimit && level.isInWorldBounds(next)
                     && isInFootprint(next, depth) && acceptsPosition(level, next)) {
                 positions[count++] = next.asLong();
             }
@@ -251,7 +254,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         // Scale the width of each layer while keeping the depth fixed.
         double dx = (double) pos.getX() - origin.getX();
         double dz = (double) pos.getZ() - origin.getZ();
-        int depthSquared = MAX_DEPTH * MAX_DEPTH;
+        int depthSquared = placementDepth * placementDepth;
         return (dx * dx + dz * dz) * depthSquared <= (double) radius * radius * (depthSquared - depth * depth);
     }
 
@@ -326,6 +329,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         }
         if (tracker != null) {
             state.putLong("origin", origin.asLong());
+            state.putInt("placementDepth", placementDepth);
             state.put("tracker", tracker.serialize(new CompoundTag()));
             state.putLongArray("batch", batch);
         }
@@ -360,6 +364,8 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
         stagedOverrides = AugmentOverrides.load(state.getCompound("augmentOverrides"));
         if (state.contains("tracker", Tag.TAG_COMPOUND)) {
             origin = BlockPos.of(state.getLong("origin"));
+            // Older active rituals started with a seven-layer placement footprint.
+            placementDepth = state.contains("placementDepth", Tag.TAG_INT) ? state.getInt("placementDepth") : MAX_DEPTH;
             tracker = new ManhattenTracker(state.getCompound("tracker"));
             batch = state.getLongArray("batch");
         }

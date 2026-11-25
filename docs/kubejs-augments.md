@@ -12,7 +12,7 @@ Leave `radiusAugment` out of a ritual definition to use the addon's defaults. Th
 | `increase` | Positive integer | No | `1` |
 | `maxCount` | Positive integer | No | `64` |
 
-Each accepted item adds `increase` blocks to the radius. `maxCount` is the total number accepted per run. In placement modes, increasing the radius widens the footprint and keeps its seven-layer depth.
+Each accepted item adds `increase` blocks to the radius. `maxCount` is the total number accepted per run. The final radius determines the width and depth of the placement footprint. Depth is capped at seven layers.
 
 ## Share settings across a pack's rituals
 

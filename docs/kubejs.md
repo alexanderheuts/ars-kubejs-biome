@@ -32,7 +32,7 @@ Call `event.ritual(id, options)` once for each definition. Use a unique, stable 
 | `targetBiome` | Biome ID string | For `BiomeOnly` | None | Registered biome applied in the ritual footprint. A placement ritual with this option omitted leaves the biome unchanged. |
 | `defaultMode` | String | No | `'Islands'` | `'Islands'` fills air. `'Replace'` replaces non-air positions. `'ReplaceAndFill'` replaces non-air positions and fills air. `'BiomeOnly'` changes the biome without placing blocks. |
 | `blocks` | Object | For `Islands`, `Replace`, and `ReplaceAndFill` | None | Block IDs for the depth bands listed below. |
-| `radius` | Integer from 1 to 64 | No | `7` | Radius in blocks used to select positions around the brazier. The biome change uses Ars Nouveau's biome placement helper. |
+| `radius` | Integer from 1 to 64 | No | `7` | Base radius in blocks. For placement modes, the radius after augments also determines depth, up to seven layers. |
 | `sourceCostPerBlock` | Integer from 0 to 429496729 | No | `10` | Source charged per processed position. `0` makes the ritual free. |
 | `radiusAugment` | Object or `false` | No | Source Gem, +1 per item, up to 64 items | Configures radius augments. Use `false` to disable them for a ritual. |
 | `augments` | Array of objects | No | Empty array | Optional item-specific overrides applied when the items are offered to the staged brazier. |
@@ -41,7 +41,7 @@ Use specific item and biome IDs. For a minimal runnable script with unrestricted
 
 ## Define placement layers
 
-For placement modes, set `blocks.layer1` to a registered, non-air block ID. Use the optional keys to change the material farther below the brazier. All three placement modes use the same footprint.
+For placement modes, set `blocks.layer1` to a registered, non-air block ID. Use the optional keys to change the material farther below the brazier. All three placement modes use the same footprint. Its depth is the radius after augments, capped at seven. A radius of 2 reaches two layers, and a +1 radius augment brings it to three.
 
 | Key | Depth below the brazier | Required | Default |
 | --- | --- | --- | --- |

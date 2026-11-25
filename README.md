@@ -19,7 +19,7 @@ Players use the Ars Nouveau Ritual Brazier with the item you choose. A ritual ca
 | `Replace` | Replaces occupied positions and leaves air gaps open. |
 | `ReplaceAndFill` | Replaces occupied positions and fills air gaps. |
 
-- **Shape the terrain.** Set the radius and up to four depth bands in a seven-layer footprint. Omitted bands inherit the block from the band above. Layers can use solid blocks or fluid sources. Placement rituals can also change the biome, or preserve it.
+- **Shape the terrain.** Set the radius and up to four depth bands in a footprint up to seven layers deep. Omitted bands inherit the block from the band above. Layers can use solid blocks or fluid sources. Placement rituals can also change the biome, or preserve it.
 - **Set the Source cost.** Choose a cost per eligible position. The brazier pays from nearby Source Jars as it works and pauses until it can afford the next batch.
 - **Add augments.** Source Gems increase radius by default. Define your own augment items to change the radius, target biome, placement mode, block layers, or Source cost.
 
