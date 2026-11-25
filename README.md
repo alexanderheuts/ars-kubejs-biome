@@ -1,44 +1,44 @@
+# Ars Nouveau: KubeJS Biome Scripting
 
-## Biome-only ritual test
+Ars Nouveau: KubeJS Biome Scripting is a NeoForge addon for modpack makers. It lets you use KubeJS to define Ars Nouveau rituals that change biomes or shape terrain, and crafting recipes whose results depend on where players build their machines.
 
-See the [KubeJS API reference](docs/kubejs.md) for registration and parameters, and the [augment guide](docs/kubejs-augments.md) for built-in defaults, shared pack settings, and item-specific overrides.
+**Minecraft 1.21.1 · NeoForge**
 
-See [biome-aware imbuement recipes](docs/kubejs-imbuement.md) for the Imbuement Chamber API and the Desert recipe example.
+**Authors** Holysweet and AquariusSidhe
 
-See [biome-aware Enchanting Apparatus recipes](docs/kubejs-enchanting-apparatus.md) for its recipe API and the Snowy Plains example.
+**License** [MIT](https://github.com/alexanderheuts/ars-kubejs-biome/blob/main/LICENSE)
 
-To test `Islands`, copy the [terracotta island example](examples/kubejs/server_scripts/terracotta_island.js) into the instance's `kubejs/server_scripts` directory. Place a brazier above open air with seven blocks of clearance below it, offer a plain terracotta block, and start the ritual with an empty main hand. With Source available, it creates a four-color terracotta island and changes the area to Badlands.
+## Custom rituals
 
-The [sand-to-desert example](examples/kubejs/server_scripts/sand_to_desert.js) registers a biome-only ritual through `BiomeRitualEvents.register`. Copy the script into the instance's `kubejs/server_scripts` directory and open a world or use `/reload`.
+Players use the Ars Nouveau Ritual Brazier with the item you choose. A ritual can work in any biome or require specific starting biomes. The same item can trigger different rituals in different biomes, so you can chain biome changes as part of your pack's progression.
 
-1. Place an empty Ars Nouveau Ritual Brazier in a biome other than Desert so the change is visible.
-2. Right-click it with vanilla sand to load the ritual, then right-click with an empty main hand to start it.
-3. For the Source check, start with no charged Source Jar nearby. The ritual should wait. Supply Source within six blocks of the brazier and check that it resumes. The example charges 10 Source per processed position, up to 50 per batch.
-4. Check the biome with F3 near the brazier and confirm the terrain stayed intact.
+| Mode | What it does |
+| --- | --- |
+| `BiomeOnly` | Changes the biome and leaves the terrain intact. |
+| `Islands` | Fills air with the configured blocks. This is the default mode. |
+| `Replace` | Replaces occupied positions and leaves air gaps open. |
+| `ReplaceAndFill` | Replaces occupied positions and fills air gaps. |
 
-The example works from any starting biome. To test biome filtering, add `startingBiomes: ['minecraft:plains']` to the definition, reload, and try a fresh brazier outside Plains. It should leave the sand in your hand.
+- **Shape the terrain.** Set the radius and up to four depth bands in a seven-layer footprint. Omitted bands inherit the block from the band above. Layers can use solid blocks or fluid sources. Placement rituals can also change the biome, or preserve it.
+- **Set the Source cost.** Choose a cost per eligible position. The brazier pays from nearby Source Jars as it works and pauses until it can afford the next batch.
+- **Add augments.** Source Gems increase radius by default. Define your own augment items to change the radius, target biome, placement mode, block layers, or Source cost.
 
-Installation information
-=======
+## Biome-aware crafting
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+- Add biome requirements to **Enchanting Apparatus** and **Imbuement Chamber** recipes. The machine checks the biome at its own position before spending Source.
+- Give the same ingredients different outputs in different biomes, with an unrestricted recipe as a fallback. KubeJS reports conflicting biome assignments.
+- With **JEI**, biome requirements appear in Ars Nouveau's existing recipe categories.
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## Requirements
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+Install [Ars Nouveau](https://www.curseforge.com/minecraft/mc-mods/ars-nouveau) and [KubeJS](https://www.curseforge.com/minecraft/mc-mods/kubejs) alongside the addon. [JEI](https://www.curseforge.com/minecraft/mc-mods/jei) is optional. The development baseline is NeoForge 21.1.267, Ars Nouveau 5.13.5, and KubeJS 2101.7.2-build.381.
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+## Documentation and examples
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+- Configure inputs, modes, biome checks, layers, and Source costs. [Ritual API](https://github.com/alexanderheuts/ars-kubejs-biome/blob/main/docs/kubejs.md)
+- Set up built-in defaults, shared settings, and per-item overrides. [Ritual augments](https://github.com/alexanderheuts/ars-kubejs-biome/blob/main/docs/kubejs-augments.md)
+- Define a Desert recipe and its unrestricted fallback. [Biome-aware imbuement](https://github.com/alexanderheuts/ars-kubejs-biome/blob/main/docs/kubejs-imbuement.md)
+- Define a Snowy Plains recipe and its unrestricted fallback. [Biome-aware enchanting](https://github.com/alexanderheuts/ars-kubejs-biome/blob/main/docs/kubejs-enchanting-apparatus.md)
+- Try a layered Badlands island, an Archwood augment, or water and lava generators. [Ready-to-copy KubeJS scripts](https://github.com/alexanderheuts/ars-kubejs-biome/tree/main/examples/kubejs/server_scripts)
+
+To try an example, copy its script into your instance's `kubejs/server_scripts/` folder, then open a world or run `/reload`.
