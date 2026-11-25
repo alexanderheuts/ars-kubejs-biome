@@ -170,7 +170,8 @@ public final class BiomeRitualRegistration implements KubeEvent {
             throw invalid(field, value, "expected a non-empty overrides object");
         }
         for (Object key : values.keySet()) {
-            if (!Set.of("targetBiome", "radius", "sourceCostPerBlock", "mode", "blocks").contains(key)) {
+            if (!(key instanceof String name)
+                    || !Set.of("targetBiome", "radius", "sourceCostPerBlock", "mode", "blocks").contains(name)) {
                 throw invalid(field + "." + key, values.get(key), "unknown override");
             }
         }
@@ -190,7 +191,8 @@ public final class BiomeRitualRegistration implements KubeEvent {
             throw invalid(field, value, "expected an object containing layer block IDs");
         }
         for (Object key : blocks.keySet()) {
-            if (!Set.of("layer1", "layer2", "layer3To4", "layer5Plus").contains(key)) {
+            if (!(key instanceof String name)
+                    || !Set.of("layer1", "layer2", "layer3To4", "layer5Plus").contains(name)) {
                 throw invalid(field + "." + key, blocks.get(key), "unknown block layer");
             }
         }

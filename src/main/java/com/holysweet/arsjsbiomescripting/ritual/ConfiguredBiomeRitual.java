@@ -157,7 +157,7 @@ public final class ConfiguredBiomeRitual extends AbstractRitual {
             return;
         }
         var definition = currentDefinition(level, position);
-        if (definition == null || !canResolve(definition)) {
+        if (!canResolve(definition)) {
             return;
         }
         resolve(definition);
