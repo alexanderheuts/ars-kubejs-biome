@@ -18,7 +18,39 @@ sourceSets.main.resources {
     exclude("src/generated/**/.cache")
 }
 
+sourceSets {
+    clientDev
+}
+
 repositories {
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup('maven.modrinth') }
+    }
+    maven {
+        name = 'Illusive Soulworks'
+        url = 'https://maven.theillusivec4.top/'
+        content { includeGroup('top.theillusivec4.curios') }
+    }
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content { includeGroup('software.bernie.geckolib') }
+    }
+    maven {
+        name = 'Latvian Dev'
+        url = 'https://maven.latvian.dev/releases'
+        content { includeGroup('dev.latvian.mods') }
+    }
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com/'
+        content {
+            includeGroup('mezz.jei')
+            includeGroup('net.mezzdev.config')
+        }
+    }
 }
 
 base {
@@ -46,6 +78,7 @@ neoForge {
     runs {
         client {
             client()
+            sourceSet = sourceSets.clientDev
             systemProperty 'neoforge.enabledGameTestNamespaces', runModId
         }
 
@@ -81,9 +114,24 @@ neoForge {
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+    // NeoForge 1.21.1 discovers these mods on the run source set's runtime classpath.
+    clientDevRuntimeClasspath.extendsFrom runtimeClasspath
 }
 
 dependencies {
+    implementation "maven.modrinth:TKB6INcv:${ars_nouveau_release}"
+    localRuntime "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+    localRuntime "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+
+    // The distribution JAR bundles KubeJS's other runtime libraries.
+    implementation("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
+    implementation "dev.latvian.mods:rhino:${rhino_version}"
+
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    clientDevRuntimeOnly sourceSets.main.output
+    clientDevRuntimeOnly("mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}") { transitive = false }
+    clientDevRuntimeOnly "net.mezzdev.config:mezz_config-${minecraft_version}-neoforge:${mezz_config_version}"
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
@@ -91,6 +139,9 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
             neo_version            : neo_version,
+            ars_nouveau_version    : ars_nouveau_version,
+            kubejs_version         : kubejs_version,
+            jei_version            : jei_version,
             loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,

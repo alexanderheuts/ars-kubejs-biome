@@ -38,3 +38,24 @@ An Ars Nouveau & KubeJS addon specifically aimed at biome conversion and biome d
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+
+[[dependencies."${mod_id}"]]
+    modId="ars_nouveau"
+    type="required"
+    versionRange="[${ars_nouveau_version},)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies."${mod_id}"]]
+    modId="kubejs"
+    type="required"
+    versionRange="[${kubejs_version},)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies."${mod_id}"]]
+    modId="jei"
+    type="optional"
+    versionRange="[${jei_version},)"
+    ordering="AFTER"
+    side="CLIENT"
